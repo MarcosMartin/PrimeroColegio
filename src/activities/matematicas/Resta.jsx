@@ -17,9 +17,11 @@ const EXERCISES = [
 
 function makeOptions(correct) {
   const opts = new Set([correct])
+  let delta = 1
   while (opts.size < 4) {
-    const n = Math.max(0, correct + Math.floor(Math.random() * 6) - 3)
-    opts.add(n)
+    opts.add(correct + delta)
+    if (opts.size < 4) opts.add(Math.max(0, correct - delta))
+    delta++
   }
   return [...opts].sort(() => Math.random() - 0.5).map(String)
 }
