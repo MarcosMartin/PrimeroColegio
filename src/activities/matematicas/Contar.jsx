@@ -3,9 +3,11 @@ import QuizBase from '../../components/QuizBase.jsx'
 
 function makeOptions(correct) {
   const opts = new Set([correct])
+  let delta = 1
   while (opts.size < 4) {
-    const n = Math.max(1, correct + Math.floor(Math.random() * 5) - 2)
-    opts.add(n)
+    opts.add(correct + delta)
+    if (opts.size < 4) opts.add(Math.max(1, correct - delta))
+    delta++
   }
   return [...opts].sort(() => Math.random() - 0.5).map(String)
 }
