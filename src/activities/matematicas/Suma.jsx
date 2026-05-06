@@ -1,25 +1,36 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { speak } from '../../utils/speech.js'
 
 const EXERCISES = [
-  { a: 2, b: 3, emoji: '🍎' },
-  { a: 4, b: 5, emoji: '⭐' },
-  { a: 1, b: 6, emoji: '🐥' },
-  { a: 3, b: 3, emoji: '🎈' },
-  { a: 5, b: 4, emoji: '🐟' },
-  { a: 7, b: 2, emoji: '🌸' },
-  { a: 6, b: 3, emoji: '🍕' },
-  { a: 4, b: 4, emoji: '🦋' },
-  { a: 8, b: 2, emoji: '🏀' },
-  { a: 13, b: 5, emoji: '⚽' },
-  { a: 20, b: 14, emoji: '🍦' },
-  { a: 23, b: 11, emoji: '🌟' },
+  // single + single
+  { a: 3,  b: 4,  emoji: '🍎' },
+  { a: 5,  b: 6,  emoji: '⭐' },
+  { a: 7,  b: 8,  emoji: '🐥' },
+  { a: 9,  b: 9,  emoji: '🎈' },
+  // single + double
+  { a: 5,  b: 12, emoji: '🐟' },
+  { a: 7,  b: 24, emoji: '🌸' },
+  { a: 8,  b: 31, emoji: '🍕' },
+  { a: 6,  b: 43, emoji: '🦋' },
+  // double + double
+  { a: 12, b: 13, emoji: '🏀' },
+  { a: 24, b: 35, emoji: '⚽' },
+  { a: 40, b: 50, emoji: '🍦' },
+  { a: 47, b: 36, emoji: '🌟' },
 ]
 
 function makeOptions(correct) {
   const opts = new Set([correct])
+  const deltas = [-3, -2, -1, 1, 2, 3, 4, 5, -4, -5]
+  let di = 0
+  while (opts.size < 4 && di < deltas.length) {
+    const n = correct + deltas[di]
+    if (n >= 0) opts.add(n)
+    di++
+  }
+  let extra = correct + 6
   while (opts.size < 4) {
-    const n = Math.max(0, correct + Math.floor(Math.random() * 6) - 3)
-    opts.add(n)
+    opts.add(extra++)
   }
   return [...opts].sort(() => Math.random() - 0.5).map(String)
 }
@@ -31,13 +42,32 @@ function SumaExercise({ exercise, onAnswer, current, total, score }) {
   const [selected, setSelected] = useState(null)
   const [feedback, setFeedback] = useState(null)
 
+  // Speak the question when exercise loads
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      speak(`¿Cuánto es ${a} más ${b}?`)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [a, b])
+
   const handle = (opt) => {
     if (selected) return
     const correct = opt === String(answer)
     setSelected(opt)
     setFeedback(correct ? 'correct' : 'incorrect')
+
+    setTimeout(() => {
+      if (correct) {
+        speak('¡Muy bien!')
+      } else {
+        speak(`La respuesta correcta es ${answer}`)
+      }
+    }, 100)
+
     setTimeout(() => onAnswer(correct), 1500)
   }
+
+  const showEmoji = a <= 8 && b <= 8
 
   return (
     <div className="p-4 flex flex-col gap-4 max-w-lg mx-auto">
@@ -53,23 +83,35 @@ function SumaExercise({ exercise, onAnswer, current, total, score }) {
           'border-transparent'
         }`}
       >
-        <div className="flex items-center justify-center gap-3 mb-4 flex-wrap">
-          <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-2 text-2xl leading-tight">
-            {emoji.repeat(a)}
+        {showEmoji && (
+          <div className="flex items-center justify-center gap-3 mb-4 flex-wrap">
+            <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-2 text-2xl leading-tight">
+              {emoji.repeat(a)}
+            </div>
+            <span className="text-3xl font-black text-orange-600">+</span>
+            <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-2 text-2xl leading-tight">
+              {emoji.repeat(b)}
+            </div>
           </div>
-          <span className="text-3xl font-black text-orange-600">+</span>
-          <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-2 text-2xl leading-tight">
-            {b <= 10 ? emoji.repeat(b) : `${b} ${emoji}`}
-          </div>
-        </div>
+        )}
 
-        <div className="text-3xl font-black text-gray-800">
-          {a} + {b} = <span className="text-orange-500">?</span>
+        <div className="flex items-center justify-center gap-2">
+          <div className="text-3xl font-black text-gray-800">
+            {a} + {b} = <span className="text-orange-500">?</span>
+          </div>
+          <button
+            onClick={() => speak(`¿Cuánto es ${a} más ${b}?`)}
+            className="text-2xl hover:scale-110 active:scale-95 transition-all"
+            title="Escuchar pregunta"
+            aria-label="Repetir pregunta"
+          >
+            🔊
+          </button>
         </div>
 
         {feedback && (
           <p className={`text-xl font-black mt-2 ${feedback === 'correct' ? 'text-green-600' : 'text-red-600'}`}>
-            {feedback === 'correct' ? '¡Correcto! 🎉' : `❌ Era: ${answer}`}
+            {feedback === 'correct' ? '¡Muy bien! 🎉' : `❌ Era: ${answer}`}
           </p>
         )}
       </div>
@@ -102,12 +144,21 @@ function SumaExercise({ exercise, onAnswer, current, total, score }) {
 
 function ResultsPanel({ correct, total, onRetry, onBack }) {
   const stars = correct === total ? 3 : correct >= Math.ceil(total * 0.7) ? 2 : correct >= Math.ceil(total * 0.4) ? 1 : 0
+
+  useEffect(() => {
+    const msg = stars === 3 ? '¡PERFECTO!' : stars >= 2 ? '¡Muy bien!' : '¡Sigue practicando!'
+    speak(msg)
+  }, [])
+
   return (
     <div className="p-6 flex flex-col items-center gap-5 text-center">
       <div className="text-7xl mt-4">{stars === 3 ? '🏆' : stars === 2 ? '🌟' : '👍'}</div>
       <h2 className="text-3xl font-black">{stars === 3 ? '¡PERFECTO!' : stars >= 2 ? '¡Muy bien!' : '¡Sigue practicando!'}</h2>
       <div className="flex gap-1 text-4xl">{[1,2,3].map(i=><span key={i} className={i<=stars?'opacity-100':'opacity-20'}>⭐</span>)}</div>
-      <div className="bg-white rounded-2xl p-4 shadow"><p className="text-5xl font-black">{correct}<span className="text-2xl text-gray-400"> / {total}</span></p><p className="text-gray-500 font-bold">correctas</p></div>
+      <div className="bg-white rounded-2xl p-4 shadow">
+        <p className="text-5xl font-black">{correct}<span className="text-2xl text-gray-400"> / {total}</span></p>
+        <p className="text-gray-500 font-bold">correctas</p>
+      </div>
       <div className="flex gap-3">
         <button onClick={onRetry} className="bg-white border-2 border-gray-200 rounded-2xl px-6 py-3 font-black active:scale-95">🔄 Repetir</button>
         <button onClick={onBack}  className="bg-yellow-400 rounded-2xl px-6 py-3 font-black active:scale-95 shadow">✅ Terminar</button>

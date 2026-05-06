@@ -1,5 +1,6 @@
 import QuizBase from '../../components/QuizBase.jsx'
 
+// Short reading comprehension: show a mini text, then answer a question
 const questions = [
   {
     image: '🐈',

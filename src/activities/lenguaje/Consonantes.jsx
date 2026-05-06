@@ -1,5 +1,7 @@
 import QuizBase from '../../components/QuizBase.jsx'
 
+// Phase 1 & 2 consonants: m, p, l, s, t, n, d, r, f, b
+// Show a picture + word and ask which syllable starts the word
 const questions = [
   { image: '🌕', word: 'LUNA',     question: '¿Con qué sílaba empieza LUNA?',    answer: 'LU', options: ['LU', 'MA', 'SA', 'TA'] },
   { image: '🍅', word: 'TOMATE',   question: '¿Con qué sílaba empieza TOMATE?',  answer: 'TO', options: ['SO', 'NO', 'TO', 'LO'] },

@@ -1,27 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { speak } from '../../utils/speech.js'
 
 const EXERCISES = [
-  { a: 5,  b: 2, emoji: '🍎' },
-  { a: 8,  b: 3, emoji: '⭐' },
-  { a: 7,  b: 4, emoji: '🐟' },
-  { a: 6,  b: 1, emoji: '🎈' },
-  { a: 9,  b: 5, emoji: '🌸' },
-  { a: 10, b: 4, emoji: '🍕' },
-  { a: 8,  b: 6, emoji: '🦋' },
-  { a: 7,  b: 7, emoji: '🏀' },
-  { a: 15, b: 5, emoji: '⚽' },
-  { a: 20, b: 8, emoji: '🍦' },
-  { a: 25, b: 12, emoji: '🌟' },
-  { a: 30, b: 14, emoji: '🐥' },
+  { a: 9,   b: 4,  emoji: '🍎' },
+  { a: 15,  b: 7,  emoji: '⭐' },
+  { a: 12,  b: 5,  emoji: '🐟' },
+  { a: 20,  b: 8,  emoji: '🎈' },
+  { a: 30,  b: 14, emoji: '🌸' },
+  { a: 45,  b: 23, emoji: '🍕' },
+  { a: 57,  b: 34, emoji: '🦋' },
+  { a: 70,  b: 42, emoji: '🏀' },
+  { a: 80,  b: 35, emoji: '⚽' },
+  { a: 90,  b: 47, emoji: '🍦' },
+  { a: 100, b: 38, emoji: '🌟' },
+  { a: 85,  b: 29, emoji: '🐥' },
 ]
 
 function makeOptions(correct) {
   const opts = new Set([correct])
-  let delta = 1
+  const deltas = [-3, -2, -1, 1, 2, 3, 4, 5, -4, -5]
+  let di = 0
+  while (opts.size < 4 && di < deltas.length) {
+    const n = Math.max(0, correct + deltas[di])
+    opts.add(n)
+    di++
+  }
+  let extra = correct + 6
   while (opts.size < 4) {
-    opts.add(correct + delta)
-    if (opts.size < 4) opts.add(Math.max(0, correct - delta))
-    delta++
+    opts.add(extra++)
   }
   return [...opts].sort(() => Math.random() - 0.5).map(String)
 }
@@ -33,17 +39,35 @@ function RestaExercise({ exercise, onAnswer, current, total, score }) {
   const [selected, setSelected] = useState(null)
   const [feedback, setFeedback] = useState(null)
 
+  // Speak the question when exercise loads
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      speak(`¿Cuánto es ${a} menos ${b}?`)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [a, b])
+
   const handle = (opt) => {
     if (selected) return
     const correct = opt === String(answer)
     setSelected(opt)
     setFeedback(correct ? 'correct' : 'incorrect')
+
+    setTimeout(() => {
+      if (correct) {
+        speak('¡Muy bien!')
+      } else {
+        speak(`La respuesta correcta es ${answer}`)
+      }
+    }, 100)
+
     setTimeout(() => onAnswer(correct), 1500)
   }
 
+  // Render crossed-out emojis for the removed items (only when a<=15)
   const renderEmojis = () => {
     const items = []
-    for (let i = 0; i < a && i < 15; i++) {
+    for (let i = 0; i < a; i++) {
       items.push(
         <span
           key={i}
@@ -75,15 +99,30 @@ function RestaExercise({ exercise, onAnswer, current, total, score }) {
             {renderEmojis()}
           </div>
         )}
-        <div className="text-3xl font-black text-gray-800">
-          {a} − {b} = <span className="text-orange-500">?</span>
+
+        <div className="flex items-center justify-center gap-2">
+          <div className="text-3xl font-black text-gray-800">
+            {a} − {b} = <span className="text-orange-500">?</span>
+          </div>
+          <button
+            onClick={() => speak(`¿Cuánto es ${a} menos ${b}?`)}
+            className="text-2xl hover:scale-110 active:scale-95 transition-all"
+            title="Escuchar pregunta"
+            aria-label="Repetir pregunta"
+          >
+            🔊
+          </button>
         </div>
-        <p className="text-gray-400 font-semibold text-sm mt-1">
-          {a <= 15 ? `Tenemos ${a} y quitamos ${b}` : ''}
-        </p>
+
+        {a <= 15 && (
+          <p className="text-gray-400 font-semibold text-sm mt-1">
+            Tenemos {a} y quitamos {b}
+          </p>
+        )}
+
         {feedback && (
           <p className={`text-xl font-black mt-2 ${feedback === 'correct' ? 'text-green-600' : 'text-red-600'}`}>
-            {feedback === 'correct' ? '¡Correcto! 🎉' : `❌ Era: ${answer}`}
+            {feedback === 'correct' ? '¡Muy bien! 🎉' : `❌ Era: ${answer}`}
           </p>
         )}
       </div>
@@ -116,12 +155,21 @@ function RestaExercise({ exercise, onAnswer, current, total, score }) {
 
 function ResultsPanel({ correct, total, onRetry, onBack }) {
   const stars = correct === total ? 3 : correct >= Math.ceil(total * 0.7) ? 2 : correct >= Math.ceil(total * 0.4) ? 1 : 0
+
+  useEffect(() => {
+    const msg = stars === 3 ? '¡PERFECTO!' : stars >= 2 ? '¡Muy bien!' : '¡Sigue practicando!'
+    speak(msg)
+  }, [])
+
   return (
     <div className="p-6 flex flex-col items-center gap-5 text-center">
       <div className="text-7xl mt-4">{stars === 3 ? '🏆' : stars === 2 ? '🌟' : '👍'}</div>
       <h2 className="text-3xl font-black">{stars === 3 ? '¡PERFECTO!' : stars >= 2 ? '¡Muy bien!' : '¡Sigue practicando!'}</h2>
       <div className="flex gap-1 text-4xl">{[1,2,3].map(i=><span key={i} className={i<=stars?'opacity-100':'opacity-20'}>⭐</span>)}</div>
-      <div className="bg-white rounded-2xl p-4 shadow"><p className="text-5xl font-black">{correct}<span className="text-2xl text-gray-400"> / {total}</span></p><p className="text-gray-500 font-bold">correctas</p></div>
+      <div className="bg-white rounded-2xl p-4 shadow">
+        <p className="text-5xl font-black">{correct}<span className="text-2xl text-gray-400"> / {total}</span></p>
+        <p className="text-gray-500 font-bold">correctas</p>
+      </div>
       <div className="flex gap-3">
         <button onClick={onRetry} className="bg-white border-2 border-gray-200 rounded-2xl px-6 py-3 font-black active:scale-95">🔄 Repetir</button>
         <button onClick={onBack}  className="bg-yellow-400 rounded-2xl px-6 py-3 font-black active:scale-95 shadow">✅ Terminar</button>
